@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TypeCraft — Master Your Keystrokes</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --surface: #17171a;
+    --surface2: #202024;
+    --border: #2a2a30;
+    --text: #e8e8f0;
+    --muted: #4a4a58;
+    --accent: #e8b84b;
+    --accent2: #7c6aff;
+    --correct: #4ade80;
+    --wrong: #f87171;
+    --cursor: #e8b84b;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(14,14,16,0.9);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo span { color: var(--text); }
+
+  .nav-links {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .nav-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 14px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { color: var(--text); background: var(--surface2); }
+  .nav-btn.active { color: var(--accent); }
+
+  /* MAIN */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* MODE BAR */
+  .mode-bar {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .mode-section {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+
+  .mode-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 6px;
+  }
+
+  .mode-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 7px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .mode-btn:hover { color: var(--text); }
+  .mode-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 28px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .stat-item {
+    text-align: center;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+  .stat-item.active { opacity: 1; }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); font-family: var(--font-display); }
+
+  /* TYPING AREA */
+  .typing-container {
+    width: 100%;
+    position: relative;
+    margin-bottom: 32px;
+  }
+
+  .words-display {
+    font-size: 24px;
+    line-height: 1.75;
+    color: var(--muted);
+    position: relative;
+    user-select: none;
+    min-height: 130px;
+    overflow: hidden;
+    max-height: 130px;
+  }
+
+  .word {
+    display: inline-block;
+    margin-right: 10px;
+    position: relative;
+  }
+
+  .char {
+    display: inline-block;
+    transition: color 0.05s;
+  }
+  .char.correct { color: var(--correct); }
+  .char.wrong { color: var(--wrong); background: rgba(248,113,113,0.12); border-radius: 2px; }
+  .char.current-wrong { color: var(--wrong); }
+
+  .cursor-blink {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: var(--cursor);
+    position: absolute;
+    border-radius: 2px;
+    animation: blink 1s step-end infinite;
+    transition: left 0.05s, top 0.05s;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .hidden-input {
+    position: absolute;
+    opacity: 0;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: text;
+    font-size: 16px;
+  }
+
+  /* RESTART BTN */
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .restart-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .restart-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  kbd {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* CARET STYLES */
+  .caret-underline .cursor-blink {
+    height: 2px;
+    width: 1ch;
+    bottom: 0;
+    top: auto;
+    transform: translateY(4px);
+  }
+
+  .caret-block .cursor-blink {
+    width: 1ch;
+    opacity: 0.35;
+    background: var(--cursor);
+  }
+
+  /* RESULTS SCREEN */
+  .results-screen {
+    display: none;
+    width: 100%;
+    animation: fadeIn 0.4s ease;
+  }
+  .results-screen.show { display: block; }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .result-card.highlight {
+    border-color: var(--accent);
+    background: rgba(232,184,75,0.06);
+  }
+
+  .result-card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .result-card-value { font-size: 36px; font-weight: 800; font-family: var(--font-display); color: var(--accent); }
+  .result-card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* WPM CHART */
+  .wpm-chart-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .chart-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  #wpmChart { width: 100%; height: 120px; display: block; }
+
+  /* COUNTDOWN */
+  .countdown-ring {
+    position: absolute;
+    top: -50px;
+    right: 0;
+    width: 42px;
+    height: 42px;
+  }
+  .countdown-ring svg { transform: rotate(-90deg); }
+  .countdown-ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* SETTINGS PANEL */
+  .settings-panel {
+    display: none;
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    animation: fadeIn 0.2s ease;
+  }
+  .settings-panel.show { display: block; }
+  .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+  .settings-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 10px; }
+  .settings-options { display: flex; gap: 6px; flex-wrap: wrap; }
+  .settings-opt {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .settings-opt:hover { color: var(--text); border-color: var(--text); }
+  .settings-opt.active { color: var(--accent); border-color: var(--accent); background: rgba(232,184,75,0.08); }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    letter-spacing: 0.5px;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* TYPING TEST SECTION */
+  .test-section { display: block; }
+  .test-section.hidden { display: none; }
+
+  /* WORD EXTRA CHARS */
+  .extra { color: var(--wrong); opacity: 0.7; }
+
+  /* Scroll shadow */
+  .words-display::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--bg));
+    pointer-events: none;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.1s;
+    width: 0%;
+  }
+
+  /* Responsive */
+  @media(max-width:640px){
+    nav { padding: 14px 20px; }
+    .words-display { font-size: 18px; }
+    .stat-value { font-size: 22px; }
+    main { padding: 24px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">⌨ Type<span>Craft</span></div>
+  <div class="nav-links">
+    <button class="nav-btn active" onclick="showTab('test')">test</button>
+    <button class="nav-btn" onclick="showToast('Leaderboard coming soon!')">leaderboard</button>
+    <button class="nav-btn" onclick="toggleSettings()">settings</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- MODE BAR -->
+  <div class="mode-bar">
+    <div class="mode-section" id="testTypeSec">
+      <button class="mode-btn active" onclick="setMode('punctuation',this,'testType')" title="punctuation">@ punct</button>
+      <button class="mode-btn" onclick="setMode('numbers',this,'testType')" title="numbers"># numbers</button>
+    </div>
+    <div class="mode-divider"></div>
+    <div class="mode-section" id="testModeSec">
+      <button class="mode-btn active" onclick="setMode('words',this,'testMode')">words</button>
+      <button class="mode-btn" onclick="setMode('time',this,'testMode')">time</button>
+      <button class="mode-btn" onclick="setMode('quote',this,'testMode')">quote</button>
+      <button class="mode-btn" onclick="setMode('zen',this,'testMode')">zen</button>
+    </div>
+    <div class="mode-divider"></div>
+    <div class="mode-section" id="testAmtSec">
+      <button class="mode-btn" onclick="setAmount(10,this)">10</button>
+      <button class="mode-btn active" onclick="setAmount(25,this)">25</button>
+      <button class="mode-btn" onclick="setAmount(50,this)">50</button>
+      <button class="mode-btn" onclick="setAmount(100,this)">100</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="settings-grid">
+      <div class="settings-group">
+        <label>Caret Style</label>
+        <div class="settings-options">
+          <button class="settings-opt active" onclick="setCaret('line',this)">line</button>
+          <button class="settings-opt" onclick="setCaret('underline',this)">underline</button>
+          <button class="settings-opt" onclick="setCaret('block',this)">block</button>
+          <button class="settings-opt" onclick="setCaret('off',this)">off</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <label>Font Size</label>
+        <div class="settings-options">
+          <button class="settings-opt" onclick="setFontSize(16,this)">sm</button>
+          <button class="settings-opt active" onclick="setFontSize(24,this)">md</button>
+          <button class="settings-opt" onclick="setFontSize(32,this)">lg</button>
+          <button class="settings-opt" onclick="setFontSize(40,this)">xl</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <label>Smooth Caret</label>
+        <div class="settings-options">
+          <button class="settings-opt active" onclick="setSmoothCaret(true,this)">on</button>
+          <button class="settings-opt" onclick="setSmoothCaret(false,this)">off</button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <label>Stop on Error</label>
+        <div class="settings-options">
+          <button class="settings-opt" onclick="setStopOnError(true,this)">on</button>
+          <button class="settings-opt active" onclick="setStopOnError(false,this)">off</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPING TEST -->
+  <div class="test-section" id="testSection">
+    <!-- Live stats -->
+    <div class="stats-row">
+      <div class="stat-item" id="wpmStat">
+        <div class="stat-label">wpm</div>
+        <div class="stat-value" id="liveWpm">—</div>
+      </div>
+      <div class="stat-item" id="accStat">
+        <div class="stat-label">acc</div>
+        <div class="stat-value" id="liveAcc">—</div>
+      </div>
+      <div class="stat-item" id="timeStat">
+        <div class="stat-label">time</div>
+        <div class="stat-value" id="liveTime">—</div>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+    <!-- Words -->
+    <div class="typing-container">
+      <div class="words-display" id="wordsDisplay" onclick="focusInput()">
+        <span class="cursor-blink" id="caretEl"></span>
+      </div>
+      <input type="text" class="hidden-input" id="hiddenInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="restart-btn" onclick="restartTest()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        restart <kbd>Tab</kbd>
+      </button>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-screen" id="resultsScreen">
+    <div class="results-grid">
+      <div class="result-card highlight">
+        <div class="result-card-label">wpm</div>
+        <div class="result-card-value" id="resWpm">—</div>
+        <div class="result-card-sub">raw: <span id="resRaw">—</span></div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-label">accuracy</div>
+        <div class="result-card-value" id="resAcc">—</div>
+        <div class="result-card-sub">%</div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-label">characters</div>
+        <div class="result-card-value" id="resChars">—</div>
+        <div class="result-card-sub" id="resCharSub">correct/wrong/extra</div>
+      </div>
+      <div class="result-card">
+        <div class="result-card-label">time</div>
+        <div class="result-card-value" id="resTime">—</div>
+        <div class="result-card-sub">seconds</div>
+      </div>
+    </div>
+
+    <div class="wpm-chart-container">
+      <div class="chart-title">WPM over time</div>
+      <canvas id="wpmChart"></canvas>
+    </div>
+
+    <div class="controls">
+      <button class="restart-btn" onclick="restartTest()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        try again <kbd>Tab</kbd>
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<footer>TypeCraft · Press <kbd>Tab</kbd> to restart · Click anywhere to focus</footer>
+
+<script>
+// ─── WORD LISTS ────────────────────────────────────────────
+const commonWords = ["the","be","to","of","and","a","in","that","have","it","for","not","on","with","he","as","you","do","at","this","but","his","by","from","they","we","say","her","she","or","an","will","my","one","all","would","there","their","what","so","up","out","if","about","who","get","which","go","me","when","make","can","like","time","no","just","him","know","take","people","into","year","your","good","some","could","them","see","other","than","then","now","look","only","come","its","over","think","also","back","after","use","two","how","our","work","first","well","way","even","new","want","because","any","these","give","day","most","us","great","between","need","large","often","hand","high","place","hold","turn","without","follow","act","ask","men","change","went","light","kind","off","need","house","picture","try","us","again","animal","point","play","small","number","off","always","music","those","both","mark","book","letter","until","mile","river","car","feet","care","second","enough","plain","girl","usual","young","ready","above","ever","red","list","though","feel","talk","bird","soon","body","dog","family","direct","pose","leave"];
+
+const punctChars = [".", ",", "!", "?", ";", ":", "-", "'", '"'];
+const nums = "0123456789";
+
+const quotes = [
+  "The only way to do great work is to love what you do.",
+  "In the middle of every difficulty lies opportunity.",
+  "It does not matter how slowly you go as long as you do not stop.",
+  "Life is what happens when you are busy making other plans.",
+  "The future belongs to those who believe in the beauty of their dreams.",
+  "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+  "You miss 100% of the shots you don't take."
+];
+
+// ─── STATE ─────────────────────────────────────────────────
+const state = {
+  words: [],
+  currentWordIdx: 0,
+  currentCharIdx: 0,
+  typed: [],
+  started: false,
+  finished: false,
+  startTime: null,
+  timer: null,
+  liveTimer: null,
+  mode: { testType: [], testMode: 'words', amount: 25 },
+  caretStyle: 'line',
+  fontSize: 24,
+  smoothCaret: true,
+  stopOnError: false,
+  wpmHistory: [],
+  totalErrors: 0,
+  correctChars: 0,
+  wrongChars: 0,
+  extraChars: 0,
+  timeLimit: null,
+  timeLeft: 0,
+};
+
+// ─── WORD GEN ──────────────────────────────────────────────
+function generateWords(n) {
+  let words = [];
+  for (let i = 0; i < n; i++) {
+    let w = commonWords[Math.floor(Math.random() * commonWords.length)];
+    if (state.mode.testType.includes('punctuation') && Math.random() < 0.15) {
+      const p = punctChars[Math.floor(Math.random() * punctChars.length)];
+      w += p;
+    }
+    if (state.mode.testType.includes('numbers') && Math.random() < 0.2) {
+      w = Math.floor(Math.random() * 999).toString();
+    }
+    words.push(w);
+  }
+  return words;
+}
+
+function getWords() {
+  if (state.mode.testMode === 'quote') {
+    const q = quotes[Math.floor(Math.random() * quotes.length)];
+    return q.split(' ');
+  }
+  if (state.mode.testMode === 'zen') return generateWords(200);
+  if (state.mode.testMode === 'time') return generateWords(300);
+  return generateWords(state.mode.amount);
+}
+
+// ─── RENDER ────────────────────────────────────────────────
+function renderWords() {
+  const display = document.getElementById('wordsDisplay');
+  display.innerHTML = '';
+
+  state.words.forEach((word, wi) => {
+    const wordEl = document.createElement('span');
+    wordEl.className = 'word';
+    wordEl.id = `word-${wi}`;
+
+    word.split('').forEach((ch, ci) => {
+      const span = document.createElement('span');
+      span.className = 'char';
+      span.id = `char-${wi}-${ci}`;
+      span.textContent = ch;
+      wordEl.appendChild(span);
+    });
+
+    display.appendChild(wordEl);
+    if (wi < state.words.length - 1) {
+      // space handled by margin
+    }
+  });
+
+  // Add caret
+  const caret = document.createElement('span');
+  caret.className = 'cursor-blink';
+  caret.id = 'caretEl';
+  display.appendChild(caret);
+
+  updateCaret();
+  applyCaretStyle();
+}
+
+function updateCaret() {
+  const caret = document.getElementById('caretEl');
+  if (!caret || state.caretStyle === 'off') {
+    if (caret) caret.style.display = 'none';
+    return;
+  }
+  caret.style.display = '';
+
+  const display = document.getElementById('wordsDisplay');
+  const wi = state.currentWordIdx;
+  const ci = state.currentCharIdx;
+
+  // Get reference char
+  let refEl = document.getElementById(`char-${wi}-${ci}`);
+  let rect, displayRect;
+
+  displayRect = display.getBoundingClientRect();
+
+  if (refEl) {
+    rect = refEl.getBoundingClientRect();
+    caret.style.left = (rect.left - displayRect.left + display.scrollLeft) + 'px';
+    caret.style.top = (rect.top - displayRect.top) + 'px';
+    caret.style.height = rect.height + 'px';
+  } else {
+    // End of word
+    const lastCharEl = document.getElementById(`char-${wi}-${state.words[wi]?.length - 1}`);
+    if (lastCharEl) {
+      rect = lastCharEl.getBoundingClientRect();
+      caret.style.left = (rect.right - displayRect.left + display.scrollLeft) + 'px';
+      caret.style.top = (rect.top - displayRect.top) + 'px';
+      caret.style.height = rect.height + 'px';
+    }
+  }
+}
+
+function applyCaretStyle() {
+  const display = document.getElementById('wordsDisplay');
+  display.classList.remove('caret-underline', 'caret-block');
+  if (state.caretStyle === 'underline') display.classList.add('caret-underline');
+  if (state.caretStyle === 'block') display.classList.add('caret-block');
+}
+
+function scrollToCurrentWord() {
+  const wordEl = document.getElementById(`word-${state.currentWordIdx}`);
+  const display = document.getElementById('wordsDisplay');
+  if (!wordEl || !display) return;
+  const wordTop = wordEl.offsetTop;
+  const displayH = display.clientHeight;
+  if (wordTop > displayH / 2) {
+    display.scrollTop = wordTop - displayH / 3;
+  }
+}
+
+// ─── INPUT HANDLING ────────────────────────────────────────
+function setupInput() {
+  const input = document.getElementById('hiddenInput');
+  input.value = '';
+  input.addEventListener('keydown', onKeyDown);
+  input.addEventListener('input', onInput);
+  input.focus();
+}
+
+function focusInput() {
+  document.getElementById('hiddenInput').focus();
+}
+
+function onKeyDown(e) {
+  if (state.finished) return;
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    restartTest();
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    restartTest();
+    return;
+  }
+
+  // Backspace
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    handleBackspace(e.ctrlKey || e.metaKey);
+    return;
+  }
+
+  // Space = next word
+  if (e.key === ' ') {
+    e.preventDefault();
+    handleSpace();
+    return;
+  }
+}
+
+function onInput(e) {
+  // Handle regular chars (prevent form submission etc)
+  const input = e.target;
+  const val = input.value;
+  if (!val) return;
+
+  // We handle via keydown for special, here handle regular chars
+  const ch = val[val.length - 1];
+  if (ch && ch !== ' ') {
+    input.value = '';
+    handleChar(ch);
+  } else {
+    input.value = '';
+  }
+}
+
+function handleChar(ch) {
+  if (state.finished) return;
+
+  if (!state.started) startTest();
+
+  const word = state.words[state.currentWordIdx];
+  if (!word) return;
+
+  // Stop on error
+  if (state.stopOnError) {
+    const expected = word[state.currentCharIdx];
+    if (expected && ch !== expected) {
+      // flash wrong
+      const charEl = document.getElementById(`char-${state.currentWordIdx}-${state.currentCharIdx}`);
+      if (charEl) {
+        charEl.classList.add('wrong');
+        setTimeout(() => charEl.classList.remove('wrong'), 200);
+      }
+      return;
+    }
+  }
+
+  if (state.currentCharIdx < word.length) {
+    const charEl = document.getElementById(`char-${state.currentWordIdx}-${state.currentCharIdx}`);
+    if (charEl) {
+      if (ch === word[state.currentCharIdx]) {
+        charEl.classList.add('correct');
+        state.correctChars++;
+      } else {
+        charEl.classList.add('wrong');
+        state.wrongChars++;
+        state.totalErrors++;
+      }
+    }
+    state.currentCharIdx++;
+  } else {
+    // Extra chars
+    const wordEl = document.getElementById(`word-${state.currentWordIdx}`);
+    if (wordEl) {
+      const extra = document.createElement('span');
+      extra.className = 'char extra wrong';
+      extra.textContent = ch;
+      wordEl.appendChild(extra);
+      state.extraChars++;
+      state.totalErrors++;
+    }
+  }
+
+  if (!state.typed[state.currentWordIdx]) state.typed[state.currentWordIdx] = '';
+  state.typed[state.currentWordIdx] += ch;
+
+  updateCaret();
+  updateProgress();
+  updateLiveStats();
+}
+
+function handleBackspace(ctrl) {
+  if (!state.started) return;
+
+  if (ctrl) {
+    // Delete whole word
+    while (state.currentCharIdx > 0) {
+      deleteChar();
+    }
+    return;
+  }
+
+  if (state.currentCharIdx > 0) {
+    deleteChar();
+  } else if (state.currentWordIdx > 0) {
+    // Go back to previous word (if it had errors)
+    state.currentWordIdx--;
+    const prevWord = state.words[state.currentWordIdx];
+    const typedPrev = state.typed[state.currentWordIdx] || '';
+    state.currentCharIdx = typedPrev.length;
+    // Remove extra chars
+    const wordEl = document.getElementById(`word-${state.currentWordIdx}`);
+    if (wordEl) {
+      const extras = wordEl.querySelectorAll('.extra');
+      extras.forEach(e => e.remove());
+    }
+    deleteChar();
+    scrollToCurrentWord();
+  }
+
+  updateCaret();
+  updateProgress();
+  updateLiveStats();
+}
+
+function deleteChar() {
+  state.currentCharIdx--;
+  const charEl = document.getElementById(`char-${state.currentWordIdx}-${state.currentCharIdx}`);
+  if (charEl) {
+    if (charEl.classList.contains('correct')) state.correctChars--;
+    if (charEl.classList.contains('wrong')) state.wrongChars--;
+    charEl.classList.remove('correct', 'wrong');
+  }
+  if (state.typed[state.currentWordIdx]) {
+    state.typed[state.currentWordIdx] = state.typed[state.currentWordIdx].slice(0, -1);
+  }
+}
+
+function handleSpace() {
+  if (!state.started) return;
+  const word = state.words[state.currentWordIdx];
+  if (!word || state.currentCharIdx === 0) return;
+
+  // Mark remaining chars as wrong if not typed
+  for (let i = state.currentCharIdx; i < word.length; i++) {
+    const charEl = document.getElementById(`char-${state.currentWordIdx}-${i}`);
+    if (charEl && !charEl.classList.contains('correct') && !charEl.classList.contains('wrong')) {
+      charEl.classList.add('wrong');
+      state.wrongChars++;
+      state.totalErrors++;
+    }
+  }
+
+  state.currentWordIdx++;
+  state.currentCharIdx = 0;
+
+  if (state.currentWordIdx >= state.words.length) {
+    if (state.mode.testMode === 'time' || state.mode.testMode === 'zen') {
+      // More words
+      const newWords = generateWords(50);
+      state.words.push(...newWords);
+      renderWords();
+    } else {
+      finishTest();
+      return;
+    }
+  }
+
+  scrollToCurrentWord();
+  updateCaret();
+  updateProgress();
+  updateLiveStats();
+}
+
+// ─── TEST LIFECYCLE ────────────────────────────────────────
+function startTest() {
+  state.started = true;
+  state.startTime = Date.now();
+  state.wpmHistory = [];
+
+  document.getElementById('wpmStat').classList.add('active');
+  document.getElementById('accStat').classList.add('active');
+  document.getElementById('timeStat').classList.add('active');
+
+  if (state.mode.testMode === 'time') {
+    state.timeLimit = state.mode.amount;
+    state.timeLeft = state.timeLimit;
+    startCountdown();
+  }
+
+  state.liveTimer = setInterval(() => {
+    updateLiveStats();
+    trackWpmHistory();
+  }, 1000);
+}
+
+function startCountdown() {
+  state.timer = setInterval(() => {
+    state.timeLeft--;
+    updateLiveStats();
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timer);
+      finishTest();
+    }
+  }, 1000);
+}
+
+function finishTest() {
+  if (state.finished) return;
+  state.finished = true;
+  clearInterval(state.liveTimer);
+  clearInterval(state.timer);
+
+  const elapsed = (Date.now() - state.startTime) / 1000;
+  const wpm = calcWpm(elapsed);
+  const raw = calcRawWpm(elapsed);
+  const acc = calcAcc();
+
+  // Show results
+  document.getElementById('testSection').classList.add('hidden');
+  const res = document.getElementById('resultsScreen');
+  res.classList.add('show');
+
+  document.getElementById('resWpm').textContent = Math.round(wpm);
+  document.getElementById('resRaw').textContent = Math.round(raw);
+  document.getElementById('resAcc').textContent = Math.round(acc) + '%';
+  document.getElementById('resChars').textContent = state.correctChars;
+  document.getElementById('resCharSub').textContent = `${state.correctChars}/${state.wrongChars}/${state.extraChars}`;
+  document.getElementById('resTime').textContent = Math.round(elapsed);
+
+  drawChart();
+}
+
+function calcWpm(elapsed) {
+  // WPM = (correct chars / 5) / minutes
+  const minutes = elapsed / 60;
+  return (state.correctChars / 5) / minutes;
+}
+
+function calcRawWpm(elapsed) {
+  const minutes = elapsed / 60;
+  return ((state.correctChars + state.wrongChars) / 5) / minutes;
+}
+
+function calcAcc() {
+  const total = state.correctChars + state.totalErrors;
+  if (total === 0) return 100;
+  return (state.correctChars / total) * 100;
+}
+
+function trackWpmHistory() {
+  if (!state.started || state.finished) return;
+  const elapsed = (Date.now() - state.startTime) / 1000;
+  state.wpmHistory.push(Math.round(calcWpm(elapsed)));
+}
+
+function updateLiveStats() {
+  if (!state.started) return;
+  const elapsed = (Date.now() - state.startTime) / 1000;
+
+  if (state.mode.testMode === 'time') {
+    document.getElementById('liveTime').textContent = state.timeLeft + 's';
+  } else {
+    document.getElementById('liveTime').textContent = Math.round(elapsed) + 's';
+  }
+
+  if (elapsed > 1) {
+    document.getElementById('liveWpm').textContent = Math.round(calcWpm(elapsed));
+    document.getElementById('liveAcc').textContent = Math.round(calcAcc()) + '%';
+  }
+}
+
+function updateProgress() {
+  const total = state.words.length;
+  const pct = (state.currentWordIdx / total) * 100;
+  document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
+}
+
+// ─── RESTART ───────────────────────────────────────────────
+function restartTest() {
+  clearInterval(state.liveTimer);
+  clearInterval(state.timer);
+
+  Object.assign(state, {
+    words: getWords(),
+    currentWordIdx: 0,
+    currentCharIdx: 0,
+    typed: [],
+    started: false,
+    finished: false,
+    startTime: null,
+    timer: null,
+    liveTimer: null,
+    wpmHistory: [],
+    totalErrors: 0,
+    correctChars: 0,
+    wrongChars: 0,
+    extraChars: 0,
+    timeLeft: 0,
+    timeLimit: null,
+  });
+
+  document.getElementById('liveWpm').textContent = '—';
+  document.getElementById('liveAcc').textContent = '—';
+  document.getElementById('liveTime').textContent = '—';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('wpmStat').classList.remove('active');
+  document.getElementById('accStat').classList.remove('active');
+  document.getElementById('timeStat').classList.remove('active');
+  document.getElementById('wordsDisplay').scrollTop = 0;
+
+  document.getElementById('testSection').classList.remove('hidden');
+  document.getElementById('resultsScreen').classList.remove('show');
+
+  // Update amount display for time mode
+  if (state.mode.testMode === 'time') {
+    document.getElementById('liveTime').textContent = state.mode.amount + 's';
+  }
+
+  renderWords();
+  setupInput();
+}
+
+// ─── CHART ─────────────────────────────────────────────────
+function drawChart() {
+  const canvas = document.getElementById('wpmChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = 120 * dpr;
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 120;
+
+  const data = state.wpmHistory.length > 1 ? state.wpmHistory : [0, state.wpmHistory[0] || 0];
+  const max = Math.max(...data, 1);
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = H - (i / 4) * (H - 20) - 10;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(232,184,75,0.3)');
+  grad.addColorStop(1, 'rgba(232,184,75,0)');
+
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = (i / (data.length - 1)) * W;
+    const y = H - ((v / max) * (H - 20)) - 10;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#e8b84b';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  data.forEach((v, i) => {
+    const x = (i / (data.length - 1)) * W;
+    const y = H - ((v / max) * (H - 20)) - 10;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Dots
+  data.forEach((v, i) => {
+    const x = (i / (data.length - 1)) * W;
+    const y = H - ((v / max) * (H - 20)) - 10;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8b84b';
+    ctx.fill();
+  });
+}
+
+// ─── SETTINGS ──────────────────────────────────────────────
+function setMode(val, btn, group) {
+  state.mode[group] = group === 'testType'
+    ? toggleArr(state.mode[group], val)
+    : val;
+
+  // Update buttons
+  document.querySelectorAll(`#${group}Sec .mode-btn`).forEach(b => b.classList.remove('active'));
+
+  if (group === 'testType') {
+    document.querySelectorAll(`#${group}Sec .mode-btn`).forEach(b => {
+      if (state.mode[group].includes(b.getAttribute('onclick').match(/'([^']+)'/)[1])) {
+        b.classList.add('active');
+      }
+    });
+  } else {
+    btn.classList.add('active');
+  }
+
+  // Update amount section
+  if (group === 'testMode') {
+    const amtSec = document.getElementById('testAmtSec');
+    if (val === 'time') {
+      amtSec.querySelectorAll('.mode-btn').forEach((b,i) => b.textContent = ['15','30','60','120'][i]+'s');
+      setAmount(30, amtSec.querySelectorAll('.mode-btn')[1]);
+    } else if (val === 'words') {
+      amtSec.querySelectorAll('.mode-btn').forEach((b,i) => b.textContent = ['10','25','50','100'][i]);
+      setAmount(25, amtSec.querySelectorAll('.mode-btn')[1]);
+    } else if (val === 'quote' || val === 'zen') {
+      amtSec.style.display = 'none';
+    }
+    if (val !== 'quote' && val !== 'zen') amtSec.style.display = '';
+  }
+
+  restartTest();
+}
+
+function toggleArr(arr, val) {
+  return arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val];
+}
+
+function setAmount(n, btn) {
+  state.mode.amount = n;
+  document.querySelectorAll('#testAmtSec .mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  restartTest();
+}
+
+function toggleSettings() {
+  document.getElementById('settingsPanel').classList.toggle('show');
+}
+
+function setCaret(style, btn) {
+  state.caretStyle = style;
+  document.querySelectorAll('#settingsPanel .settings-opt').forEach(b => {
+    if (b.getAttribute('onclick').includes('setCaret')) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  applyCaretStyle();
+  const caret = document.getElementById('caretEl');
+  if (caret) caret.style.display = style === 'off' ? 'none' : '';
+}
+
+function setFontSize(sz, btn) {
+  state.fontSize = sz;
+  document.getElementById('wordsDisplay').style.fontSize = sz + 'px';
+  document.querySelectorAll('#settingsPanel .settings-opt').forEach(b => {
+    if (b.getAttribute('onclick').includes('setFontSize')) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  setTimeout(updateCaret, 50);
+}
+
+function setSmoothCaret(val, btn) {
+  state.smoothCaret = val;
+  const caret = document.getElementById('caretEl');
+  if (caret) caret.style.transition = val ? 'left 0.1s, top 0.1s' : 'none';
+  document.querySelectorAll('#settingsPanel .settings-opt').forEach(b => {
+    if (b.getAttribute('onclick').includes('setSmoothCaret')) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+}
+
+function setStopOnError(val, btn) {
+  state.stopOnError = val;
+  document.querySelectorAll('#settingsPanel .settings-opt').forEach(b => {
+    if (b.getAttribute('onclick').includes('setStopOnError')) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+}
+
+function showTab(tab) {
+  // Could expand tabs here
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── KEYBOARD SHORTCUT ─────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    restartTest();
+  }
+  // Any key starts focus
+  if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+    document.getElementById('hiddenInput').focus();
+  }
+});
+
+// ─── INIT ──────────────────────────────────────────────────
+restartTest();
+
+// Recalculate caret on resize
+window.addEventListener('resize', () => {
+  updateCaret();
+});
+</script>
+</body>
+</html>
